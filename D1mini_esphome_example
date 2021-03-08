@@ -1,0 +1,125 @@
+######## Laundry Room ESP Sensor ##############
+# DHT11 - Temperature and humidity
+# DIstance Sensor - SR-402 - for Salt water softnerer level
+# 2x Vibration sensor - washer and drier operation
+# (optional) Leak sensor for drain - in case water heater, laundry tub, leak
+################################################
+
+# Pin connections:
+#D1 - Trigger (distance)
+#D2 - Echo (distance)
+#D3
+#D4 - 
+#D5 - Temp (DHT22) 
+#D6 - Washer (vib)
+#D7 - Dryer (vib)
+
+
+esphome:
+  name: laundry_esp
+  platform: ESP8266
+  board: d1_mini
+
+wifi:
+  ssid: "mywifi"
+  password: "youwillneverguess"
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Laundry Esp Fallback Hotspot"
+    password: "--------------"
+
+captive_portal:
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: "------------"
+
+ota:
+  password: "-------------"
+
+sensor:
+
+# Distance sensor - water softner level
+# https://esphome.io/components/sensor/ultrasonic.html
+
+  - platform: ultrasonic
+    trigger_pin: D1 #GPIO5
+    echo_pin: D2 #GPIO4
+    name: "Ultrasonic Sensor"
+    id: ussensor
+    pulse_time: 20us
+    timeout: 4.0m
+    update_interval: 60s
+    filters:
+      - filter_out: nan
+      - median:
+          window_size: 5
+          send_every: 5
+          send_first_at: 1
+          
+          
+
+
+
+# Temperature - DHT11
+  - platform: dht
+    pin: D5 #GPIO14
+    temperature:
+      name: "Laundry Temperature"
+    humidity:
+      name: "Laundry Humidity"
+    model: dht11
+    update_interval: 60s
+    
+# Vibration sensors
+# used details from project - https://github.com/rmooreID/Home-Assistant-Appliance-Monitor/
+
+text_sensor:
+  - platform: template
+    name: "Salt Level"
+    lambda: |-
+      if (id(ussensor).state > 0.66) {
+        return {"Rinsing"};
+      } else if (id(ussensor).state > 0.62)  {
+        return {"Need Salt"};
+      } else if (id(ussensor).state > 0.59)  {
+        return {"Low"};
+      } else if (id(ussensor).state > 0.56)  {
+        return {"Medium"};
+      } else if (id(ussensor).state > 0.3)  {
+        return {"High"};
+      } else
+        return {"Error"};
+    update_interval: 3600s
+
+
+binary_sensor:
+ - platform: gpio
+   pin: GPIO13 #D7
+   name: "Washer"
+   device_class: vibration
+   filters:
+#   - delayed_on_off: 3s
+   - delayed_on: 5ms
+   - delayed_off: 30s #5min 
+
+ - platform: gpio
+   pin: GPIO12 #D6
+   name: "Dryer"
+   device_class: vibration
+   filters:
+#   - delayed_on_off: 3s
+   - delayed_on: 5ms
+   - delayed_off: 30s
+#   - invert:
+
+ 
+  
+   
+   
+
+    
